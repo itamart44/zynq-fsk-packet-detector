@@ -1,2 +1,5 @@
-# zynq-fsk-packet-detector
-Multi-channel FSK packet detection and address matching system on PYNQ-Z2
+# Multi-Channel FSK Packet Detector (PYNQ-Z2)
+
+FPGA-based system for detecting FSK packets across multiple channels and extracting target address information.
+
+Project under development.
