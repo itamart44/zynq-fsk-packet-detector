@@ -1,0 +1,109 @@
+# Formulas & Understanding — FSK Packet Detection Project
+
+This document walks through the key formulas used in the project,
+with intuitive explanations and notes.
+
+---
+
+## 1. FSK Signal Model
+
+FSK encodes bits by switching between two frequencies.
+
+Formula:
+
+x[n] = A cos(2π f_k n / f_s + φ) + w[n]
+
+Where:
+- A = signal amplitude
+- f_k = transmitted frequency (f0 or f1)
+- f_s = sampling frequency
+- φ = phase
+- w[n] = noise
+
+Notes:
+- This describes how the received signal looks mathematically.
+- Noise represents real-world imperfections.
+
+Questions:
+- What happens if noise increases?
+- How does frequency separation affect detection?
+
+---
+
+## 2. Energy Detection
+
+Used to detect if a signal exists in a time window.
+
+E = sum(x[n]^2)
+
+Decision rule:
+If E > threshold → signal present.
+
+Notes:
+- Simple and fast.
+- Helps avoid processing noise-only regions.
+
+Questions:
+- How do we choose the threshold?
+- What happens at low SNR?
+
+---
+
+## 3. FSK Demodulation via Frequency Energy
+
+Compute energy near each frequency.
+
+P_k = I_k^2 + Q_k^2
+
+Compare:
+If P1 > P0 → bit = 1
+Else → bit = 0
+
+Notes:
+- Determines which frequency is dominant.
+
+Questions:
+- Why square and sum?
+- What if both are similar?
+
+---
+
+## 4. Sync Matching (Correlation)
+
+Measures similarity with known sync pattern.
+
+C = sum(b[i] * s[i])
+
+Notes:
+- High value means strong match.
+
+Questions:
+- How sensitive is this to noise?
+- What threshold should we use?
+
+---
+
+## 5. Address Extraction
+
+Convert bits to integer:
+
+Address = sum(b[i] * 2^(M-1-i))
+
+Notes:
+- Identifies target device/message.
+
+Questions:
+- How many bits are enough?
+- What about errors?
+
+---
+
+## 6. Latency
+
+Latency = decision_time − packet_start_time
+
+Notes:
+- Measures responsiveness.
+
+Questions:
+- What affects latency?
