@@ -1,109 +1,141 @@
-# Formulas & Understanding — FSK Packet Detection Project
+# Formulas & Understanding — FSK Receiver (Detection → FSK → Sync → Address)
 
 This document walks through the key formulas used in the project,
 with intuitive explanations and notes.
 
+Goal (per channel):
+1) Detect signal presence (not only noise)
+2) Verify it is FSK
+3) Demodulate bits (0/1)
+4) Detect frame start using Sync (correlation)
+5) Extract Address field
+
 ---
 
-## 1. FSK Signal Model
+## 1. Signal Model (conceptual)
 
-FSK encodes bits by switching between two frequencies.
-
-Formula:
-
-x[n] = A cos(2π f_k n / f_s + φ) + w[n]
+x[n] = s[n] + w[n]
 
 Where:
-- A = signal amplitude
-- f_k = transmitted frequency (f0 or f1)
-- f_s = sampling frequency
-- φ = phase
+- x[n] = received samples
+- s[n] = transmitted signal (unknown content)
 - w[n] = noise
 
 Notes:
-- This describes how the received signal looks mathematically.
-- Noise represents real-world imperfections.
-
-Questions:
-- What happens if noise increases?
-- How does frequency separation affect detection?
+- This is a model of what we receive, not a detection algorithm.
 
 ---
 
-## 2. Energy Detection
+## 2. Energy Detection (signal present?)
 
-Used to detect if a signal exists in a time window.
-
-E = sum(x[n]^2)
+E = sum_{n=0}^{N-1} x[n]^2
 
 Decision rule:
-If E > threshold → signal present.
+If E > T_E  → signal activity present
+Else        → likely noise only
 
 Notes:
-- Simple and fast.
-- Helps avoid processing noise-only regions.
-
-Questions:
-- How do we choose the threshold?
-- What happens at low SNR?
+- Fast first stage
+- Reduces unnecessary processing when only noise exists
 
 ---
 
-## 3. FSK Demodulation via Frequency Energy
+## 3. FSK Demodulation (bit decision) using frequency energy
 
-Compute energy near each frequency.
+For each bit window of Nb samples, compute energy around f0 and f1.
 
+I_k = sum_{n=0}^{Nb-1} x[n] * cos(2π f_k n / f_s)
+Q_k = sum_{n=0}^{Nb-1} x[n] * sin(2π f_k n / f_s)
 P_k = I_k^2 + Q_k^2
 
-Compare:
-If P1 > P0 → bit = 1
-Else → bit = 0
+Where:
+- k ∈ {0,1}  (checking f0 and f1)
+- f_s = sampling frequency
+- Nb = samples per bit
+
+Bit decision:
+If P_1 > P_0 → bit = 1
+Else         → bit = 0
 
 Notes:
-- Determines which frequency is dominant.
-
-Questions:
-- Why square and sum?
-- What if both are similar?
+- This converts the waveform into a stream of bits.
+- Using both cos and sin makes it robust to unknown phase.
 
 ---
 
-## 4. Sync Matching (Correlation)
+## 4. FSK Verification (is it really FSK?)
 
-Measures similarity with known sync pattern.
+Option A (simple, practical):
+During a signal-active region, check that P0 and P1 alternate over time
+and neither one is always dominant.
 
-C = sum(b[i] * s[i])
+Example indicator (conceptual):
+FSK-like if both states appear frequently:
+count(P0>P1) > min_count  AND  count(P1>P0) > min_count
 
 Notes:
-- High value means strong match.
-
-Questions:
-- How sensitive is this to noise?
-- What threshold should we use?
+- This step rejects many non-FSK signals before framing.
 
 ---
 
-## 5. Address Extraction
+## 5. Sync / Frame Detection (Correlation)
 
-Convert bits to integer:
+We assume the frame format is known (where Sync is located),
+but the content (Address value) is unknown.
 
-Address = sum(b[i] * 2^(M-1-i))
+Convert bits to ±1:
+u = +1 for bit=1,  u = -1 for bit=0
+
+Correlation score:
+C = sum_{i=0}^{L-1} u_b[i] * u_s[i]
+
+Where:
+- u_b[i] = received bits (after demod), mapped to ±1
+- u_s[i] = known Sync bits, mapped to ±1
+- L = Sync length (bits)
+
+Decision rule:
+If C ≥ T_C → Sync found → frame start located
 
 Notes:
-- Identifies target device/message.
-
-Questions:
-- How many bits are enough?
-- What about errors?
+- This is NOT "is it FSK". It is "is this OUR frame format".
+- After Sync is found, we know where Address starts.
 
 ---
 
-## 6. Latency
+## 6. Address Extraction
 
-Latency = decision_time − packet_start_time
+After Sync, the next M bits represent the Address field.
+
+Address = sum_{i=0}^{M-1} b[i] * 2^(M-1-i)
+
+Where:
+- b[i] are the extracted Address bits (0/1)
+- M is Address length in bits
 
 Notes:
-- Measures responsiveness.
+- The Address value is NOT known in advance.
+- The format (Sync length + Address length) is known.
 
-Questions:
-- What affects latency?
+---
+
+## 7. Latency
+
+Latency = decision_time − frame_start_time
+
+In FPGA cycles:
+Latency_cycles = counter_decision − counter_start
+
+Notes:
+- Useful metric for performance reporting.
+
+---
+
+## 8. Basic performance counters (optional but recommended)
+
+- Correct detection: frame found + address extracted correctly (vs ground truth)
+- Miss: frame transmitted but not detected
+- False alarm: detection when no frame transmitted
+
+Notes:
+- Ground truth comes from the controlled lab transmitter/generator.
