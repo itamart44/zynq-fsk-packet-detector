@@ -136,6 +136,53 @@ Notes:
 - Correct detection: frame found + address extracted correctly (vs ground truth)
 - Miss: frame transmitted but not detected
 - False alarm: detection when no frame transmitted
+---
 
+## 9. Detection Accuracy (Performance Metrics)
+
+We evaluate system performance using detection statistics
+based on known transmitted ground truth.
+
+### Probability of Detection (Pd)
+
+Pd = N_correct / N_transmitted
+
+Where:
+- N_correct = number of frames correctly detected
+- N_transmitted = total transmitted frames
+
+Interpretation:
+- Measures how often real transmissions are detected.
+
+---
+
+### Miss Rate
+
+Miss = N_missed / N_transmitted
+
+Where:
+- N_missed = transmitted frames that were not detected
+
+Interpretation:
+- Measures failures to detect real signals.
+
+---
+
+### False Alarm Rate (Pfa)
+
+Pfa = N_false / N_idle_windows
+
+Where:
+- N_false = detections when no transmission occurred
+- N_idle_windows = observation windows with no signal
+
+Interpretation:
+- Measures how often noise is mistaken for signal.
+
+---
+
+Notes:
+- Ground truth comes from the controlled lab transmitter.
+- These metrics help tune detection thresholds.
 Notes:
 - Ground truth comes from the controlled lab transmitter/generator.
