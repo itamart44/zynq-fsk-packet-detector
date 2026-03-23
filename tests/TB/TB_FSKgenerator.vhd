@@ -7,12 +7,16 @@ entity TB_FSKgenerator is
 end TB_FSKgenerator;
 
 architecture Behavioral of TB_FSKgenerator is
+signal tready : std_logic;
+signal tdata  : std_logic_vector(35 downto 0);
+signal tvalid : std_logic;
 signal clk : STD_LOGIC := '0';
 signal reset : STD_LOGIC := '1';
 signal sample_in : signed(15 downto 0) := (others => '0');
 signal sample_valid : STD_LOGIC := '0';
 constant Fs : real := 1.0e6;
 begin
+    tready <= '1';
     clk <= not clk after 5 ns;
 
     process
@@ -50,10 +54,13 @@ begin
         windows => 256
     )
     port map (
-        clk => clk,
+          clk => clk,
         reset => reset,
-        sample_in => sample_in,
-        sample_valid => sample_valid
+    sample_in => sample_in,
+ sample_valid => sample_valid,
+       tready =>  tready, 
+       tdata  =>  tdata, 
+       tvalid =>   tvalid  
     );
 
 end Behavioral;
