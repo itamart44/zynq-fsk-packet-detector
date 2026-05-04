@@ -1,50 +1,58 @@
 # Multi-Channel FSK Signal Detection and Address Decoder (PYNQ-Z2)
 
-## Overview
-This project implements a real-time FPGA-based FSK receiver on a PYNQ-Z2 (Zynq) platform.
+## 📡 Overview
+This project implements a real-time FPGA-based FSK receiver on a PYNQ-Z2 (Zynq-7000) platform.
 
-The system processes incoming sample streams, detects signal activity (distinguishing signal from noise), performs frequency-domain analysis using FFT, demodulates FSK signals into bits, detects frame boundaries using Sync correlation, and extracts the destination Address field.
+The system processes incoming sample streams, detects signal activity (distinguishing signal from noise), performs frequency-domain analysis using FFT, demodulates FSK signals, detects frame boundaries via Sync correlation, and extracts the destination Address field.
 
-Processing is split between FPGA (PL) for real-time signal processing and CPU (PS) for configuration, monitoring, logging, and visualization.
+The design follows a **hardware/software co-design approach**:
+- FPGA (PL) performs real-time signal processing
+- CPU (PS) handles data acquisition, monitoring, and visualization
 
-This repository represents an incremental implementation of the system, developed in stages toward a full multi-channel design.
+This repository represents an **incremental development process**, starting from a single-channel pipeline and evolving toward a scalable multi-channel system.
 
 ---
 
-## Project Goals
-- Detect signal activity (signal vs noise)
+## 🎯 Project Goals
+- Detect signal activity (signal vs. noise)
 - Perform frequency-domain analysis (FFT)
-- Demodulate FSK into a bitstream
+- Demodulate FSK signals
 - Detect frame start using Sync correlation
 - Extract Address field
-- Support real-time streaming output to CPU
-- Support multiple channels in parallel (future extension)
+- Stream processed data to CPU via AXI
+- Support multi-channel processing (future extension)
 
 ---
 
-## Current Implementation
+## ⚙️ Current Implementation
 
-The current implementation focuses on a single-channel FPGA pipeline:
+The current implementation focuses on a **single-channel FPGA pipeline**:
 
-- Sample input handling
-- Energy detection
-- FFT-based frequency analysis
-- Frequency bin selection
-- Power calculation
-- FSK decision (bit extraction)
-- Sync detection
-- Address extraction
-- AXI Stream output interface
+- Sample input buffering  
+- Energy detection  
+- FFT-based frequency analysis  
+- Frequency bin selection  
+- Power calculation  
+- FSK decision (bit-level detection)  
+- Sync detection  
+- Address extraction  
+- AXI Stream output interface  
 
-### Planned Extensions
-- Multi-channel support (parallel pipelines)
-- CPU (PS) integration via AXI FIFO
-- Real-time visualization using Python (PYNQ)
-- Performance metrics (latency, detection accuracy)
+✔ The full pipeline has been verified in simulation  
+✔ Python-side parsing and visualization are implemented  
 
 ---
 
-## System Pipeline (Current)
+## 🚀 Planned Extensions
+- Multi-channel support (parallel pipelines in FPGA)
+- Channel comparison and selection logic
+- Full CPU (PS) integration via AXI DMA
+- Real-time visualization (Python / PYNQ)
+- Performance evaluation (latency, detection accuracy)
+
+---
+
+## 🔁 System Pipeline (Current)
 
 Input Samples  
 ↓  
@@ -56,7 +64,7 @@ Frequency Bin Selection
 ↓  
 Power Calculation  
 ↓  
-FSK Decision (bit extraction)  
+FSK Decision  
 ↓  
 Sync Detection  
 ↓  
@@ -66,90 +74,115 @@ AXI Stream Output
 
 ---
 
-## System Architecture
+## 🧠 System Architecture
 
-CPU (PS):
-- Configuration and control
-- Data collection via AXI
-- Logging and visualization
+### FPGA (PL)
+- Fully pipelined real-time DSP chain
+- Signal detection and validation
+- FSK demodulation
+- Frame synchronization
+- Address extraction
+- AXI Stream output
 
-FPGA (PL):
-- Real-time streaming signal processing pipeline
-- Fully pipelined DSP chain
-- AXI Stream output interface
+### CPU (PS)
+- Data acquisition via AXI DMA
+- Parsing of FPGA output stream
+- Event detection (Signal / Address)
+- Real-time visualization (Python)
 
 ---
 
-## Output Interface
+## 📤 Output Interface
 
-The system outputs processed data via AXI Stream:
+The FPGA outputs processed data via AXI Stream:
 
-- `tdata` – 36-bit data bus  
+- `tdata` – encoded data (type + payload)  
 - `tvalid` – data valid signal  
 - `tready` – handshake signal  
 
-The output is packetized and may include:
+The stream may include:
 - Power measurements
 - Sync detection events
 - Extracted address values
 
 ---
 
-## Frame Assumptions
+## 🧪 Software (Python)
+
+The `sw/` directory contains:
+
+- `simulation.py`  
+  Simulates FPGA output for development and debugging without hardware input  
+
+- `run_fpga.py`  
+  Reads real-time data from FPGA via DMA and displays:
+  - Signal detection events  
+  - Extracted addresses  
+  - Power comparison graphs  
+
+---
+
+## 📦 Frame Assumptions
+
 The system assumes a generic FSK frame structure:
 
 Preamble → Sync → Address → Payload
 
-The Address value is unknown in advance, but its position is defined.
+The Address field position is known, while its value is not predefined.
 
 ---
 
-## Performance Metrics (Planned)
+## 📊 Performance Metrics (Planned)
 - Probability of Detection (Pd)
-- Miss Rate
 - False Alarm Rate
+- Miss Rate
 - Latency
 - Channel activity statistics
 
 ---
 
-## Repository Structure
-- `docs` — theory, formulas, design notes  
-- `hw` — FPGA design (RTL)  
-- `sw` — CPU software (Python / PYNQ)  
-- `tests` — testbenches and simulation results  
-- `demo` — demonstration material  
+## 📂 Repository Structure
+
+- `docs/` — theory, formulas, design notes  
+- `hw/` — FPGA design (RTL + bitstream)  
+- `sw/` — Python software (DMA + simulation)  
+- `tests/` — testbenches and simulation results  
+- `demo/` — demonstration materials  
 
 ---
 
-## Scope
+## 🎯 Scope
 
-Included:
+### Included
 - Real-time FPGA-based FSK detection
-- Bit extraction and frame synchronization
-- Address decoding
+- Bit-level demodulation
+- Frame synchronization (Sync detection)
+- Address extraction
 - AXI Stream output
 
-Not Included:
-- Wi-Fi / Bluetooth decoding
+### Not Included
+- Full protocol decoding (e.g., Wi-Fi / Bluetooth)
 - Unknown protocol reverse engineering
 - Wideband spectrum analysis
 
 ---
 
-## Platform
+## 🧰 Platform
+
 - Board: PYNQ-Z2 (Zynq-7000)
 - Tools: Vivado, PYNQ, Python
 - Architecture: FPGA streaming pipeline with ARM (PS) control
 
 ---
 
-## Status
+## 📌 Status
+
 - Architecture definition ✔  
-- Single-channel pipeline ✔  
+- Single-channel FPGA pipeline ✔  
 - AXI Stream output ✔  
 - Sync detection ✔  
 - Address extraction ✔  
+- Python simulation ✔  
+- Python DMA pipeline ✔  
 - Multi-channel support (planned)  
-- CPU integration (in progress)  
-- Final demo (pending)
+- Final hardware validation (pending)  
