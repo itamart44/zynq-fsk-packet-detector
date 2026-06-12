@@ -19,7 +19,8 @@ entity Output_Interface is
              power_valid,adders_valid : in STD_LOGIC;
              adders_out : in STD_LOGIC_VECTOR ((adders_length-1) downto 0);
             tdata  : out std_logic_vector(35 downto 0);
-            tvalid : out std_logic    
+            tvalid : out std_logic;
+            tlast  : out std_logic
     );
 end Output_Interface;
 
@@ -99,9 +100,14 @@ case state is
        tdata (35 downto 32) <= "0011";   
        tdata(0) <= sync_detected;
        when adders =>
-        tdata (35 downto 32) <= "0100";   
+        tdata (35 downto 32) <= "0100";
         tdata (6 downto 0) <= adders_out;
        end case;
-end process;                 
+end process;
 tvalid <= tvalid_reg;
+
+-- tlast marks the final beat of each packet: power_0 is followed by
+-- power_1 (2-word packet), while sync and adders are single-word packets.
+tlast <= '1' when (tvalid_reg = '1' and state /= power_0) else '0';
+
 end Behavioral;

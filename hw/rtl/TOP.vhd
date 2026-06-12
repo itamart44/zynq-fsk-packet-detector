@@ -13,9 +13,13 @@ generic (
     Port ( clk, reset : in STD_LOGIC;
            sample_in : in signed ((sample_size-1) downto 0);
            sample_valid : in STD_LOGIC;
+           min_energy : in std_logic_vector(31 downto 0);
+           bin_f0     : in std_logic_vector(7 downto 0);
+           bin_f1     : in std_logic_vector(7 downto 0);
            tready : in  std_logic;
            tdata  : out std_logic_vector(35 downto 0);
-           tvalid : out std_logic
+           tvalid : out std_logic;
+           tlast  : out std_logic
          );
 end TOP;
 
@@ -98,9 +102,10 @@ port map (     clk => clk,
 
 Energy_Detector_inst : entity work.Energy_Detector
 port map (    clk => clk,
-            reset => reset, 
+            reset => reset,
        sample_in  =>  sample_out,
      sample_valid =>  sample_out_valid,
+       min_energy =>  resize(unsigned(min_energy), 40),
   energy_detected =>  energy_detected,
      energy_valid =>  energy_valid
 );
@@ -156,10 +161,12 @@ port map (    aclk => clk,
 );
 
 
- Bin_selector_inst : entity work.Bin_selector 
+ Bin_selector_inst : entity work.Bin_selector
 port map (     clk => clk,
              reset => reset,
-             bin_k => bin_index_int, 
+             bin_k => bin_index_int,
+            bin_f0 => to_integer(unsigned(bin_f0)),
+            bin_f1 => to_integer(unsigned(bin_f1)),
       fft_real_out => fft_out (31 downto 16),
       fft_imeg_out => fft_out (15 downto 0),
   fft_output_valid => fft_output_valid,
@@ -215,14 +222,15 @@ Output_Interface_inst : entity work.Output_Interface
 port map (     clk => clk,
              reset => reset,
             tready => tready,
-            power0 => power0, 
+            power0 => power0,
             power1 => power1,
      sync_detected => sync_detected,
        power_valid => power_valid,
       adders_valid => adders_valid,
         adders_out => adders_out,
             tdata  => tdata,
-            tvalid => tvalid
+            tvalid => tvalid,
+            tlast  => tlast
             );
 process(clk)
 begin

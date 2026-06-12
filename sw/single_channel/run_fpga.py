@@ -38,6 +38,7 @@ power1_hist = []
 while True:
 
     # -------- קבלת נתונים מה-FPGA --------
+    dma.recvchannel.start()
     dma.recvchannel.transfer(buffer)
     dma.recvchannel.wait()
 
@@ -92,4 +93,4 @@ while True:
     plt.ylabel("Power")
     plt.pause(0.01)
 
-    time.sleep(0.05)
+    time.sleep(0.01)
