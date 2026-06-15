@@ -24,8 +24,10 @@
 -- the energy detector stays idle during gaps.
 --
 -- Address matching:
---   Every MATCH_EVERY packets all channels receive the same address so that
---   multi_channel_top's match_detected output is exercised.
+--   All channels' address LFSRs share the same seed, so packet 1 transmits
+--   an identical address on every channel (fires match_detected once near
+--   the start). Channel 0 and channels 1..N-1 use different LFSR feedback
+--   taps, so from packet 2 onward each channel's address sequence diverges.
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -41,8 +43,7 @@ entity fsk_packet_generator is
         CLK_DIV         : integer := 100;  -- 100 MHz clk / 1 MHz sample rate
         NOISE_AMPLITUDE : integer := 200;  -- peak noise counts (< energy threshold)
         PREAMBLE_BITS   : integer := 4;    -- 120 kHz windows before sync
-        GAP_BITS        : integer := 2;    -- noise windows between packets
-        MATCH_EVERY     : integer := 2     -- force same address every N packets
+        GAP_BITS        : integer := 2     -- noise windows between packets
     );
     port (
         clk          : in  std_logic;
@@ -130,8 +131,6 @@ architecture Behavioral of fsk_packet_generator is
     signal bit_idx    : integer range 0 to PKT_BITS - 1 := 0;
     -- period_cnt counts bit windows within the gap or preamble phase
     signal period_cnt : integer range 0 to 255 := 0;
-    -- packet counter for forced-match scheduling
-    signal pkt_cnt    : integer range 0 to MATCH_EVERY - 1 := 0;
 
     signal phase_acc  : phase_arr_t  := (others => (others => '0'));
     signal addr_lfsr  : lfsr_arr_t;   -- random address source per channel
@@ -169,8 +168,6 @@ begin
         variable inc      : unsigned(15 downto 0);
         variable lut_idx  : integer range 0 to 255;
         variable nval     : integer;
-        -- Captures channel-0 address for forced-match override
-        variable ch0_addr : std_logic_vector(ADDR_LENGTH - 1 downto 0);
     begin
         if rising_edge(clk) then
             if reset = '1' then
@@ -178,12 +175,11 @@ begin
                 beat_cnt   <= 0;
                 bit_idx    <= 0;
                 period_cnt <= 0;
-                pkt_cnt    <= 0;
                 for i in 0 to N_CHANNEL - 1 loop
                     -- Staggered initial phases avoid identical outputs at t=0
                     phase_acc(i)  <= to_unsigned(i * 8192, 16);
                     -- Non-zero seeds so LFSRs never lock up
-                    addr_lfsr(i)  <= std_logic_vector(to_unsigned(i + 1, 8));
+                    addr_lfsr(i)  <= std_logic_vector(to_unsigned(1, 8));
                     noise_lfsr(i) <= std_logic_vector(to_unsigned(i * 37 + 5, 8));
                     ch_addr(i)    <= (others => '0');
                     ch_sample(i)  <= (others => '0');
@@ -212,27 +208,22 @@ begin
                             if period_cnt = GAP_BITS - 1 then
                                 period_cnt <= 0;
 
-                                -- Advance all address LFSRs and latch new addresses
-                                ch0_addr := (others => '0');
+                                -- Advance all address LFSRs and latch new addresses.
+                                -- All channels share the same seed (see reset block),
+                                -- so packet 1 transmits the same address on every
+                                -- channel. Channel 0 uses a different feedback tap
+                                -- than channels 1..N-1, so their sequences diverge
+                                -- from packet 2 onward.
                                 for i in 0 to N_CHANNEL - 1 loop
                                     lv := addr_lfsr(i);
-                                    fb := lv(7) xor lv(5) xor lv(4) xor lv(3);
+                                    if i = 0 then
+                                        fb := lv(7) xor lv(5) xor lv(4) xor lv(3);
+                                    else
+                                        fb := lv(7) xor lv(6) xor lv(5) xor lv(4);
+                                    end if;
                                     addr_lfsr(i) <= lv(6 downto 0) & fb;
                                     ch_addr(i)   <= lv(ADDR_LENGTH - 1 downto 0);
-                                    if i = 0 then
-                                        ch0_addr := lv(ADDR_LENGTH - 1 downto 0);
-                                    end if;
                                 end loop;
-
-                                -- Forced-match: override channels 1..N-1 with ch0 address
-                                if pkt_cnt = MATCH_EVERY - 1 then
-                                    for i in 1 to N_CHANNEL - 1 loop
-                                        ch_addr(i) <= ch0_addr;
-                                    end loop;
-                                    pkt_cnt <= 0;
-                                else
-                                    pkt_cnt <= pkt_cnt + 1;
-                                end if;
 
                                 -- Zero phases for a clean tone start
                                 for i in 0 to N_CHANNEL - 1 loop

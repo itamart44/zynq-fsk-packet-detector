@@ -24,17 +24,18 @@ therefore throttled by wall-clock time (REDRAW_INTERVAL) rather than by
 transfer count, so the plots update at a steady, readable rate (default 10
 FPS) regardless of how fast packets arrive.
 
-Live redraw uses plt.pause() (not just canvas.draw()+flush_events()) because
-interactive backends including the Jupyter `%matplotlib widget` (ipympl)
-backend need the GUI event loop to run briefly to actually push a new frame.
+Live redraw renders each frame to a PNG in memory and displays it with
+IPython.display, replacing the previous output cell each time. This avoids
+the `%matplotlib widget` (ipympl) backend entirely, which required a browser
+refresh to resync and then stopped updating.
 
 Run in a Jupyter cell on the PYNQ-Z2:
     %run run_fpga.py
-Or import and call run().
+Or import and call run(). Interrupt the kernel (Stop button) to end the run.
 """
 
+import io
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
@@ -285,7 +286,7 @@ def run(n_channels=N_CHANNELS, bitstream=BITSTREAM):
     ol  = Overlay(bitstream)
     dma = ol.axi_dma_0
     buf = allocate(shape=(BUFFER_WORDS,), dtype=np.uint64)
-    print('Overlay loaded. Starting monitor — close the plot window to stop.')
+    print('Overlay loaded. Starting monitor — interrupt the kernel to stop.')
 
     states = [ChannelState(i) for i in range(n_channels)]
 
@@ -295,10 +296,7 @@ def run(n_channels=N_CHANNELS, bitstream=BITSTREAM):
     total_words = 0
 
     fig, ax_power, ax_bar, ax_text, status_txt = build_figure(n_channels)
-    inline_backend = 'inline' in matplotlib.get_backend()
-    if not inline_backend:
-        plt.ion()
-        plt.show()
+    plt.close(fig)  # prevent the default backend from also displaying it
 
     REDRAW_INTERVAL = 0.1   # seconds between plot redraws (~10 FPS)
     STATS_EVERY     = 200   # print a tag-count summary every N transfers
@@ -309,7 +307,7 @@ def run(n_channels=N_CHANNELS, bitstream=BITSTREAM):
 
     try:
         transfer_count = 0
-        while plt.fignum_exists(fig.number):
+        while True:
             # ---- DMA transfer ----
             dma.recvchannel.start()
             dma.recvchannel.transfer(buf)
@@ -366,12 +364,11 @@ def run(n_channels=N_CHANNELS, bitstream=BITSTREAM):
                 update_plots(states, ax_power, ax_bar, ax_text,
                              status_txt, match_count, best_ch, best_valid,
                              total_words)
-                if inline_backend:
-                    display.display(fig)
-                    display.clear_output(wait=True)
-                else:
-                    fig.canvas.draw_idle()
-                    plt.pause(0.001)
+                buf_png = io.BytesIO()
+                fig.savefig(buf_png, format='png', facecolor=fig.get_facecolor())
+                buf_png.seek(0)
+                display.display(display.Image(data=buf_png.getvalue()))
+                display.clear_output(wait=True)
 
             if POLL_INTERVAL > 0:
                 time.sleep(POLL_INTERVAL)
