@@ -1,6 +1,12 @@
 # FPGA Architecture Design
 ## Multi-Channel FSK Signal Detection System
 
+> **Note:** This document reflects the initial (v0) design concept and predates the final
+> implementation. See `README.md` and `Project_Book_FSK_Multichannel.pdf` for the as-built
+> architecture: the FPGA streams a single 64-bit word directly over AXI-Stream/AXI DMA (no
+> event FIFO, no AXI-Lite/interrupt interface, no per-event timestamp/latency fields), and the
+> implemented design defaults to `N_channel = 2`, not 1.
+
 This document describes the FPGA architecture used to detect FSK transmissions,
 extract packet addresses, and report events to the CPU.
 
