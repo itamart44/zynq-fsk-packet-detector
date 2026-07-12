@@ -1,6 +1,12 @@
 # Multi-Channel FSK Signal Detection System
 ## System Algorithm Design
 
+> **Note:** This document reflects the initial (v0) design concept and predates the final
+> implementation. See `README.md` and `Project_Book_FSK_Multichannel.pdf` for the as-built
+> architecture: the FPGA streams a single 64-bit word directly over AXI-Stream/AXI DMA (no
+> event FIFO, no AXI-Lite/interrupt interface, no per-event timestamp/latency fields), and the
+> implemented design defaults to `N_channel = 2`, not 1.
+
 This document defines the algorithmic design of the system before hardware implementation.
 
 The goal of the system is to detect FSK transmissions, extract the destination address,
